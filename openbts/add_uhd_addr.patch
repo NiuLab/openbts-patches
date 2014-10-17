@@ -1,0 +1,65 @@
+--- a/apps/OpenBTS.cpp
++++ b/apps/OpenBTS.cpp
+@@ -143,6 +143,7 @@
+ 
+ 
+ const char* transceiverPath = "./transceiver";
++static char bUhdAddr[17];
+ 
+ pid_t gTransceiverPid = 0;
+ 
+@@ -169,7 +170,16 @@
+ 	static char *argv[10]; int argc = 0;
+ 	argv[argc++] = const_cast<char*>(transceiverPath);
+ 	argv[argc++] = TRXnumARFCN;
+-	argv[argc] = NULL;
++
++    char deviceArgs[30];
++    if (bUhdAddr[0] == '\0')
++        argv[argc] = NULL;
++    else {
++        strcpy(deviceArgs, "addr=");
++        strncat(deviceArgs, bUhdAddr, 17);
++        argv[argc] = deviceArgs;
++        LOG(ALERT) <<"Set transceiver argv[" <<argc<<"] as " << argv[argc] ;
++    }
+ 
+ 	LOG(ALERT) << usernotice;
+ 	gTransceiverPid = vfork();
+@@ -442,6 +452,8 @@
+ void processArgs(int argc, char *argv[])
+ {
+ 	// TODO: Properly parse and handle any arguments
++    bUhdAddr[0] = '\0';
++
+ 	if (argc > 1) {
+ 		bool testflag = false;
+ 		for (int argi = 1; argi < argc; argi++) {		// Skip argv[0] which is the program name.
+@@ -469,6 +481,18 @@
+ 				continue;
+ 			}
+ 
++            // Charlie: we want to specify address of uhd device
++			if (!strcmp(argv[argi],"--uhd_addr")) {
++				if (++argi == argc) {
++					LOG(ALERT) <<"Missing argument to --uhd_addr option";
++					exit(2);
++				}
++                strncpy(bUhdAddr, argv[argi], 17);
++                bUhdAddr[16] = '\0';
++				LOG(ALERT) <<"Setting bUhdAddr as " << bUhdAddr;
++                continue;
++			}
++
+ 			// (pat) Adding support for specified sql config file.
+ 			// Unfortunately, the Config table was inited quite some time ago,
+ 			// so stick this arg in the environment, whence the ConfigurationTable can find it, and then reboot.
+@@ -483,7 +507,7 @@
+ 				exit(0);
+ 			}
+ 			if (!strcmp(argv[argi],"--help")) {
+-				printf("OpenBTS [--version --gensql --gentex] [--config file.db]\n");
++				printf("OpenBTS [--version --gensql --gentex] [--config file.db] [--uhd_addr addr]\n");
+ 				printf("OpenBTS exiting...\n");
+ 				exit(0);
+ 			}
